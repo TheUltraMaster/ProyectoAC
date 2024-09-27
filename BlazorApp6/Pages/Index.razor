@@ -1,0 +1,72 @@
+﻿@page "/"
+@using Firebase.Database
+@using Firebase.Database.Query
+
+<PageTitle>Led Encendido</PageTitle>
+
+<Actuador @bind-Value="led" OnClick="InsertarEnDB" ></Actuador>
+
+<br />
+<br/>
+<br />
+
+
+<p>Estado del LED: @led</p>
+
+@if(estado)
+{
+    <Alerta></Alerta>
+}
+
+@code {
+    private bool led = false;
+    private bool estado = false;
+    FirebaseClient firebase;
+
+    private void InsertarEnDB()
+    {
+        firebase.Child("data/example").PutAsync(new
+        {
+            led = this.led,
+            estado = this.estado
+        });
+    }
+
+    
+
+
+    protected override async Task OnInitializedAsync()
+    {
+         firebase = new FirebaseClient("https://raspberry-9334f-default-rtdb.firebaseio.com/");
+
+        var child = firebase
+            .Child("data/example")
+            .AsObservable<dynamic>()
+            .Subscribe(async d =>
+            {
+                if (d.EventType == Firebase.Database.Streaming.FirebaseEventType.InsertOrUpdate)
+                {
+                    try
+                    {
+                        if (d.Key == "led")
+                        {
+                            bool newState = Convert.ToBoolean(d.Object);
+                            led = newState;
+                            await InvokeAsync(StateHasChanged);
+                        }
+
+                        if (d.Key == "estado")
+                        {
+                            bool newState = Convert.ToBoolean(d.Object);
+                            this.estado = newState;
+                            await InvokeAsync(StateHasChanged);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error al procesar el dato: {ex.Message}");
+                    }
+                }
+            });
+    }
+}
